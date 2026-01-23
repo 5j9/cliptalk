@@ -1,5 +1,5 @@
 import wave
-from asyncio import Queue, sleep
+from asyncio import sleep
 from collections.abc import Iterable
 from io import BytesIO
 from pathlib import Path
@@ -18,7 +18,7 @@ fa_syn_config = SynthesisConfig(length_scale=0.8)
 
 
 async def stream_audio_to_q(
-    audio_generator: Iterable[AudioChunk], audio_q: Queue
+    audio_generator: Iterable[AudioChunk], audio_q: AudioQ
 ):
     first_chunk = True
 
@@ -50,12 +50,6 @@ async def stream_audio_to_q(
         # `await audio_q.put` does not yield control unless audio_q is full
         await sleep(0)
         await audio_q.put(chunk.audio_int16_bytes)
-
-    await audio_q.put(None)  # Sentinel for end of audio
-    # Note: If the receiving end needs the final size, it must be updated
-    # after the stream ends. For a live stream, this is often not possible
-    # and the receiving player must be tolerant of an empty or incorrect
-    # size field in the header.
 
 
 async def prefetch_audio(text: str, lang: str, audio_q: AudioQ):
