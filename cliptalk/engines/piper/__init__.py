@@ -47,9 +47,10 @@ async def stream_audio_to_q(
 
             first_chunk = False
 
-        # `await audio_q.put` does not yield control unless audio_q is full
-        await sleep(0)
         await audio_q.put(chunk.audio_int16_bytes)
+        # `await audio_q.put` does not yield control unless audio_q is full
+        await sleep(1)
+        logger.debug('audio_q chunk sent')
 
 
 async def prefetch_audio(text: str, lang: str, audio_q: AudioQ):
