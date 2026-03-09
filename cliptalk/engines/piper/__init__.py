@@ -9,12 +9,21 @@ from piper import AudioChunk, PiperVoice, SynthesisConfig
 from cliptalk import AudioQ, logger
 
 THIS_DIR = Path(__file__).parent
-en_voice = PiperVoice.load(THIS_DIR / 'voices/en_US-hfc_male-medium.onnx')
-fa_voice = PiperVoice.load(THIS_DIR / 'voices/fa_IR-gyro-medium.onnx')
 
-# https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/API_PYTHON.md
-en_syn_config = SynthesisConfig()
-fa_syn_config = SynthesisConfig(length_scale=0.8)
+
+class VoiceConfig(dict[str, tuple[PiperVoice, SynthesisConfig]]):
+    def __missing__(self, lang: str):
+        if lang == 'fa':
+            # https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/API_PYTHON.md
+            return PiperVoice.load(
+                THIS_DIR / 'voices/fa_IR-gyro-medium.onnx'
+            ), SynthesisConfig(length_scale=1.0)
+        return PiperVoice.load(
+            THIS_DIR / 'voices/en_US-hfc_male-medium.onnx'
+        ), SynthesisConfig()
+
+
+voice_config = VoiceConfig()
 
 
 async def stream_audio_to_q(
@@ -54,10 +63,7 @@ async def stream_audio_to_q(
 
 
 async def prefetch_audio(text: str, lang: str, audio_q: AudioQ):
-    is_fa = lang == 'fa'
-    voice, syn_config = (
-        (fa_voice, fa_syn_config) if is_fa else (en_voice, en_syn_config)
-    )
+    voice, syn_config = voice_config[lang]
     short_text = repr(text[:20] + '...')
     await stream_audio_to_q(voice.synthesize(text, syn_config), audio_q)
     logger.debug(f'Audio cached for {short_text}')
