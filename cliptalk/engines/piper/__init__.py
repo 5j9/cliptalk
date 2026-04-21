@@ -58,7 +58,7 @@ async def stream_audio_to_q(
 
         await audio_q.put(chunk.audio_int16_bytes)
         # `await audio_q.put` does not yield control unless audio_q is full
-        await sleep(1)
+        await sleep(0.3)
         logger.debug('audio_q chunk sent')
 
 
