@@ -1,21 +1,9 @@
-import sys
 from asyncio import Queue
 
 from aiohttp import ClientConnectionResetError
-from loguru import logger
+from applog import logger
 
 __version__ = '2025.09.19'
-
-# Remove the default handler to prevent duplicate output if you're reconfiguring
-logger.remove()
-
-# Add a new handler with DEBUG level, custom format, and colors
-logger.add(
-    sys.stderr,  # Output to console
-    level='DEBUG',
-    # This format includes color tags for time, level, and message
-    format='<green>{time:%H:%M:%S}</green> | <level>{level: <8}</level> | <cyan>{file}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>',
-)
 
 
 class SizeUpdatingQ[T](Queue):
