@@ -113,7 +113,7 @@ function startWs() {
 		switch (j.action) {
 			case 'toggle-monitoring':
 				monitoring = j.state;
-				toggleButton.textContent = monitoring ? '⏽' : '⭘';
+				toggleButton.textContent = monitoring ? '⭘' : '⏽';
 				break;
 			case 'new-text':
 				var text = j.text;
