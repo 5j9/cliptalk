@@ -118,12 +118,27 @@ monitor_clipboard_args = [
 ]
 
 
+@routes.options('/q')
+async def q_preflight_handler(request: Request) -> Response:
+    """Handle CORS preflight for /q endpoint."""
+    logger.debug('recieved preflight request')
+    return Response(
+        status=200,
+        headers={
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Max-Age': '86400',  # 24 hours
+        },
+    )
+
+
 @routes.post('/q')
-async def _(request: Request) -> Response:
+async def add_to_in_q(request: Request) -> Response:
     """Receive text data via POST request and add to processing queue."""
     body = await request.read()
     text = body.decode()
-    await in_q.put(body.decode().strip(text))
+    await in_q.put(body.decode().strip())
     logger.info(f'Added text to queue via /q endpoint: {text[:20]}...')
     return Response()
 
