@@ -118,6 +118,16 @@ monitor_clipboard_args = [
 ]
 
 
+@routes.post('/q')
+async def _(request: Request) -> Response:
+    """Receive text data via POST request and add to processing queue."""
+    body = await request.read()
+    text = body.decode()
+    await in_q.put(body.decode().strip(text))
+    logger.info(f'Added text to queue via /q endpoint: {text[:20]}...')
+    return Response()
+
+
 async def listen_to_qt():
     """Monitor clipboard and add texts to queue."""
     while True:
