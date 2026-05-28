@@ -2,7 +2,7 @@
 
 1. `uv run python cliptalk`.
 2. `cliptalk.html` should automatically open in your browser.
-3. Click the `⭘` button to toggle it to `⏽`. (Browsers require user interaction for activating autoplay, which is why this is not `on` by default.)
+3. Click the `⏽` button to toggle it to `⭘`. (Browsers require user interaction for activating autoplay, which is why this is not `⭘` by default.)
 4. Copy some text to your clipboard.
 5. ClipTalk will start reading the text aloud!
 
