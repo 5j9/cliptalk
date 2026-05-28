@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name          Twitter Tweet Text Sender with Button
-// @namespace     http://tampermonkey.net/
+// @name          twitter-tweet-sender.user.js
+// @namespace     https://github.com/5j9/cliptalk/user-scripts
 // @version       1.2
 // @description   Adds a button to send tweet text to local endpoint, positioned right of tweet
 // @author        5j9
