@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          Twitter Tweet Text Sender with Button
 // @namespace     http://tampermonkey.net/
-// @version       1.1
+// @version       1.2
 // @description   Adds a button to send tweet text to local endpoint, positioned right of tweet
 // @author        5j9
 // @match         https://twitter.com/*
@@ -17,6 +17,12 @@
 
     // Function to send text to local endpoint
     function sendToEndpoint(text, button) {
+        // Mark button as activated immediately to prevent multiple sends
+        button.setAttribute('data-activated', 'true');
+
+        // Change button color to indicate it's been activated
+        button.style.background = '#9E9E9E'; // Gray for activated state
+
         GM_xmlhttpRequest({
             method: 'POST',
             url: API_ENDPOINT,
@@ -49,16 +55,20 @@
             button.style.background = '#f44336'; // Red for error
         }
 
-        // Reset button color after 500ms
+        // Reset button color after 500ms (but keep activated color if it was activated)
         setTimeout(() => {
-            button.style.background = originalBg;
+            if (button.getAttribute('data-activated') === 'true') {
+                button.style.background = '#9E9E9E'; // Return to activated gray
+            } else {
+                button.style.background = originalBg;
+            }
         }, 500);
     }
 
     // Function to create send button
     function createSendButton(tweetTextElement) {
         const button = document.createElement('button');
-        button.textContent = '📤'; // Changed to send emoji
+        button.textContent = '📤'; // Send emoji
         button.style.cssText = `
             position: absolute;
             top: 8px;
@@ -73,29 +83,42 @@
             transition: background 0.2s;
         `;
 
-        // Define the event listener function
-        const handleMouseEnter = (e) => {
-            e.stopPropagation(); // Stop event bubbling
-            const tweetText = tweetTextElement.textContent.trim();
-            if (tweetText) {
-                sendToEndpoint(tweetText, button);
-                // Remove the listener after the first send
-                button.removeEventListener('mouseenter', handleMouseEnter);
-                console.log('Mouseenter listener removed for this button.');
-            }
-        };
+        // Initialize as not activated
+        button.setAttribute('data-activated', 'false');
 
-        // Add mouse-enter event for auto-send
-        button.addEventListener('mouseenter', handleMouseEnter);
-
-        // Add click event as fallback
-        button.addEventListener('click', (e) => {
+        // Click event handler (always works)
+        const handleClick = (e) => {
             e.stopPropagation();
             const tweetText = tweetTextElement.textContent.trim();
             if (tweetText) {
-                sendToEndpoint(tweetText, button);
+                // Check if already activated
+                if (button.getAttribute('data-activated') !== 'true') {
+                    sendToEndpoint(tweetText, button);
+                } else {
+                    console.log('Button already activated, resending on click');
+                    sendToEndpoint(tweetText, button);
+                }
             }
-        });
+        };
+
+        // Mouse enter handler (only works if not activated)
+        const handleMouseEnter = (e) => {
+            e.stopPropagation();
+            // Only auto-send if not activated yet
+            if (button.getAttribute('data-activated') === 'false') {
+                const tweetText = tweetTextElement.textContent.trim();
+                if (tweetText) {
+                    sendToEndpoint(tweetText, button);
+                }
+            }
+        };
+
+        // Add event listeners
+        button.addEventListener('mouseenter', handleMouseEnter);
+        button.addEventListener('click', handleClick);
+
+        // Store handlers for potential cleanup (optional)
+        button._handlers = { handleMouseEnter, handleClick };
 
         return button;
     }
