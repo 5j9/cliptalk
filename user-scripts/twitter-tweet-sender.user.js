@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          twitter-tweet-sender.user.js
 // @namespace     https://github.com/5j9/cliptalk/user-scripts
-// @version       1.2
+// @version       1.3
 // @description   Adds a button to send tweet text to local endpoint, positioned right of tweet
 // @author        5j9
 // @match         https://twitter.com/*
@@ -86,39 +86,48 @@
         // Initialize as not activated
         button.setAttribute('data-activated', 'false');
 
-        // Click event handler (always works)
-        const handleClick = (e) => {
+        // Add a flag to prevent duplicate sends within a short time
+        let sendInProgress = false;
+
+        // Unified function to handle sending (with deduplication)
+        const handleSend = (e) => {
             e.stopPropagation();
+
+            // Prevent duplicate sends
+            if (sendInProgress) {
+                console.log('Send already in progress, ignoring');
+                return;
+            }
+
             const tweetText = tweetTextElement.textContent.trim();
             if (tweetText) {
-                // Check if already activated
-                if (button.getAttribute('data-activated') !== 'true') {
-                    sendToEndpoint(tweetText, button);
-                } else {
-                    console.log('Button already activated, resending on click');
-                    sendToEndpoint(tweetText, button);
-                }
+                sendInProgress = true;
+                sendToEndpoint(tweetText, button);
+                // Reset the flag after a short delay to allow resending if needed
+                setTimeout(() => {
+                    sendInProgress = false;
+                }, 1000);
             }
         };
 
-        // Mouse enter handler (only works if not activated)
-        const handleMouseEnter = (e) => {
+        // Click event handler
+        button.addEventListener('click', handleSend);
+
+        // Mouse enter handler (only auto-send if not activated)
+        button.addEventListener('mouseenter', (e) => {
             e.stopPropagation();
-            // Only auto-send if not activated yet
-            if (button.getAttribute('data-activated') === 'false') {
+            // Only auto-send if not activated yet AND not already sending
+            if (button.getAttribute('data-activated') === 'false' && !sendInProgress) {
                 const tweetText = tweetTextElement.textContent.trim();
                 if (tweetText) {
+                    sendInProgress = true;
                     sendToEndpoint(tweetText, button);
+                    setTimeout(() => {
+                        sendInProgress = false;
+                    }, 1000);
                 }
             }
-        };
-
-        // Add event listeners
-        button.addEventListener('mouseenter', handleMouseEnter);
-        button.addEventListener('click', handleClick);
-
-        // Store handlers for potential cleanup (optional)
-        button._handlers = { handleMouseEnter, handleClick };
+        });
 
         return button;
     }
