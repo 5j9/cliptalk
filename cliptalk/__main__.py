@@ -99,7 +99,7 @@ in_q = InputQ(
     maxsize=500, action='input-queue-size', current_ws_container=globals()
 )
 out_q = OutputQ(
-    maxsize=10, action='output-queue-size', current_ws_container=globals()
+    maxsize=25, action='output-queue-size', current_ws_container=globals()
 )
 
 
