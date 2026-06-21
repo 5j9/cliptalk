@@ -36,7 +36,11 @@ def skip(text: str):
     if length < min_text_length:
         logger.info(f'{length=} < {min_text_length=}. Skipping.')
         return True
-    if text.count(' ') / length < min_space_ratio:
+    space_count = text.count(' ')
+    if space_count < 2:
+        logger.info('space_count < 2')
+        return True
+    if space_count / length < min_space_ratio:
         logger.info(f'Space count less than {min_space_ratio}. Skipping.')
         return True
     return False
@@ -309,11 +313,11 @@ def run_qt_app(pipe: PipeConnection):
     # Connect the activated signal of the tray icon to toggle_monitoring
     # This will trigger toggle_monitoring when the icon is clicked (left-click by default)
     tray_icon.activated.connect(
-        lambda reason: handle_tray_click(
-            tray_icon, pause_action, resume_action, style
+        lambda reason: (
+            handle_tray_click(tray_icon, pause_action, resume_action, style)
+            if reason == QSystemTrayIcon.ActivationReason.Trigger
+            else None
         )
-        if reason == QSystemTrayIcon.ActivationReason.Trigger
-        else None
     )
 
     # --- Control Pipe Listener Setup ---
