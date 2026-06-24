@@ -2,7 +2,7 @@ const port = '3775'
 const home = `http://127.0.0.1:${port}/`
 
 // @ts-check
-var audio = new Audio();
+var audio = document.querySelector('audio');
 
 function requestNextStream(e) {
 	if (e.type != 'ended') {
@@ -25,21 +25,6 @@ favicon.href = `data:image/svg+xml,
     	<text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" font-size="16" fill="black">🗣️</text>
 	</svg >`
 document.head.appendChild(favicon);
-
-/**@type{HTMLButtonElement} */
-// @ts-ignore
-const pausePlayButton = document.getElementById('pauseOrPlay');
-
-async function pauseOrPlay() {
-	if (!audio.paused) {
-		audio.pause();
-		pausePlayButton.textContent = '▶';
-		return;
-	}
-
-	audio.play();
-	pausePlayButton.textContent = '⏸';
-}
 
 function jumpBackward() {
 	audio.currentTime -= 10;
@@ -80,7 +65,7 @@ var toggleButton = document.getElementById('toggle-monitoring');
 async function toggleMonitoring() {
 	monitoring = !monitoring;
 	var r = await fetch(home + 'monitoring', { method: 'PUT', body: JSON.stringify(monitoring) });
-	toggleButton.textContent = monitoring ? '⏽' : '⭘';
+	toggleButton.textContent = monitoring ? '⭘' : '⏽';
 }
 toggleButton.onclick = toggleMonitoring;
 

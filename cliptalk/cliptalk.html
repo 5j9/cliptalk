@@ -10,9 +10,8 @@
 
 <body>
     <div>
-        <button type="button" id='toggle-monitoring'>⭘</button>
+        <button type="button" id='toggle-monitoring'>⏽</button>
         <button type="button" onclick="jumpBackward()">⏪</button>
-        <button type="button" onclick="pauseOrPlay()" id="pauseOrPlay">⏸</button>
         <button type="button" onclick="jumpForward()">⏩</button>
         <button type="button" onclick="stop()">⏹</button>
         <button type="button" onclick="next()" id="next">⏭</button>
@@ -21,9 +20,9 @@
         <span class="indicator">Output Queue: <span id="output-queue-size">0</span></span>
         <span class="indicator">Status: <span id="status">🔴</span></span>
     </div>
+    <audio controls></audio>
     <div class="editable" contenteditable="true" id="editable_field" dir="ltr">
     </div>
-
 </body>
 <script src="./cliptalk.js"></script>
 
