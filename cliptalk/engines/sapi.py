@@ -88,21 +88,28 @@ def _select_voice(voice_obj):
 # -----------------------------------------------------------------------------
 
 
-def _create_wav_header(data_size: int) -> bytes:
-    file_size = 36 + data_size
+def _create_wav_header() -> bytes:
+    """
+    Creates a streaming WAV header.
+
+    The sizes are set to 0xFFFFFFFF because the final audio length
+    is not known when streaming begins.
+    """
+
+    unknown_size = 0xFFFFFFFF
 
     header = struct.pack(
         '<4sI4s',
         b'RIFF',
-        file_size,
+        unknown_size,
         b'WAVE',
     )
 
     header += struct.pack(
         '<4sIHHIIHH',
         b'fmt ',
-        16,
-        1,  # PCM
+        16,  # PCM fmt chunk size
+        1,  # PCM format
         CHANNELS,
         SAMPLE_RATE,
         BYTE_RATE,
@@ -113,7 +120,7 @@ def _create_wav_header(data_size: int) -> bytes:
     header += struct.pack(
         '<4sI',
         b'data',
-        data_size,
+        unknown_size,
     )
 
     return header
@@ -149,7 +156,7 @@ def _synthesize_chunk(text: str) -> bytes:
 
         raw_pcm = stream.GetData()
 
-        return _create_wav_header(len(raw_pcm)) + raw_pcm
+        return _create_wav_header() + raw_pcm
 
     except Exception as e:
         logger.exception('SAPI synthesis failed: %r', e)
