@@ -10,4 +10,4 @@ Notes:
 * ClipTalk ignores texts shorter than 30 characters or texts that do not contain space.
 * If the ClipTalk tab frequently goes to sleep, add its URL to the "Never put these sites to sleep" list in your browser settings.
 
-**Todo**: Add speed control. For now, I suggest using *Video Speed Controller* ([Chrome](https://chromewebstore.google.com/detail/video-speed-controller/nffaoalbilbmmfgbnbgppjihopabppdk)) or *Global Speed* ([Firefox](https://addons.mozilla.org/en-US/firefox/addon/global-speed/), [Chrome](https://chromewebstore.google.com/detail/global-speed/jpbjcnkcffbooppibceonlgknpkniiff), [Edge](https://microsoftedge.microsoft.com/addons/detail/global-speed/mjhlabbcmjflkpjknnicihkfnmbdfced)) for adjusting the reading speed.
+**Todo**: Add speed control. For now, I suggest using [Video Speed Controller](https://github.com/igrigorik/videospeed) or [Global Speed](https://github.com/polywock/globalSpeed) for adjusting the reading speed.
