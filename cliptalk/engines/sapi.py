@@ -183,13 +183,6 @@ async def prefetch_audio(
     lang: str,
     audio_q: AudioQ,
 ):
-    """
-    Synthesizes text in chunks and pushes each WAV chunk onto the queue
-    immediately after it is ready.
-
-    This greatly reduces startup latency and allows shutdown to interrupt
-    processing between chunks.
-    """
     chunks = split_text(text)
 
     logger.debug(
@@ -197,28 +190,38 @@ async def prefetch_audio(
         len(chunks),
     )
 
+    first_chunk = True
+
     for i, chunk in enumerate(chunks, start=1):
         if getattr(audio_q, 'is_shutdown', False):
-            logger.debug(
-                'TTS aborted before chunk %d/%d',
-                i,
-                len(chunks),
-            )
+            logger.debug('TTS aborted')
             return
 
-        wave_bytes = await to_thread(
+        wav_bytes = await to_thread(
             _synthesize_chunk,
             chunk,
         )
 
-        if not wave_bytes:
+        if not wav_bytes:
             continue
 
-        await audio_q.put(wave_bytes)
+        if getattr(audio_q, 'is_shutdown', False):
+            logger.debug('TTS aborted')
+            return
+
+        if first_chunk:
+            # send WAV header once
+            await audio_q.put(wav_bytes)
+
+            first_chunk = False
+
+        else:
+            # remove WAV header, keep only PCM
+            await audio_q.put(wav_bytes[44:])
 
         logger.debug(
-            'Queued chunk %d/%d (%d bytes)',
+            'audio chunk %d/%d sent (%d bytes)',
             i,
             len(chunks),
-            len(wave_bytes),
+            len(wav_bytes),
         )
