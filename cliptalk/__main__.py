@@ -2,7 +2,14 @@ __version__ = '0.1.dev0'
 
 import sys
 import webbrowser
-from asyncio import Event, QueueShutDown, new_event_loop, sleep, to_thread
+from asyncio import (
+    Event,
+    QueueShutDown,
+    Task,
+    new_event_loop,
+    sleep,
+    to_thread,
+)
 from collections.abc import Awaitable, Callable
 from multiprocessing import Pipe, Process
 from pathlib import Path
@@ -105,8 +112,9 @@ out_q = OutputQ(
 
 @routes.put('/monitoring')
 async def _(request: Request) -> Response:
+    global monitoring
     logger.debug('/monitoring recieved request')
-    new_state = await request.json()
+    monitoring = new_state = await request.json()
     conn.send(new_state)
     logger.info(f'monitoring state: {new_state}')
     return Response()
@@ -143,13 +151,41 @@ async def add_to_in_q(request: Request) -> Response:
     return Response()
 
 
+monitoring: bool = False
+temp_monitor_task: Task | None = None
+
+
+temp_monitor_task: Task | None = None
+
+
+async def _send_false_later() -> None:
+    await sleep(5.0)
+    conn.send(False)
+
+
+@routes.get('/temp_monitor')
+async def temp_monitor(request: Request) -> Response:
+    global temp_monitor_task
+
+    conn.send(True)
+
+    if temp_monitor_task is not None:
+        temp_monitor_task.cancel()
+
+    temp_monitor_task = create_task(_send_false_later())
+
+    return Response()
+
+
 async def listen_to_qt():
     """Monitor clipboard and add texts to queue."""
+    global monitoring
     while True:
         try:
             data = await to_thread(conn.recv)
 
             if type(data) is bool:
+                monitoring = data
                 logger.debug(f'qt toggled monitoring: {data}')
                 if current_ws is None:
                     continue

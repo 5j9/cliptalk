@@ -1,6 +1,7 @@
 import wave
 from asyncio import sleep, to_thread
 from collections.abc import Iterable, Iterator
+from functools import cache
 from io import BytesIO
 from pathlib import Path
 
@@ -11,21 +12,19 @@ from cliptalk import AudioQ, logger
 THIS_DIR = Path(__file__).parent
 
 
-class VoiceConfig(dict[str, tuple[PiperVoice, SynthesisConfig]]):
-    def __missing__(self, lang: str):
-        if lang == 'fa':
-            return (
-                PiperVoice.load(THIS_DIR / 'voices/fa_IR-gyro-medium.onnx'),
-                SynthesisConfig(length_scale=1.0),
-            )
-
+@cache
+def get_voice_config(lang: str) -> tuple[PiperVoice, SynthesisConfig]:
+    logger.info(f'Loading Piper voice for {lang!r}')
+    if lang == 'fa':
         return (
-            PiperVoice.load(THIS_DIR / 'voices/en_US-hfc_male-medium.onnx'),
-            SynthesisConfig(),
+            PiperVoice.load(THIS_DIR / 'voices/fa_IR-gyro-medium.onnx'),
+            SynthesisConfig(length_scale=1.0),
         )
 
-
-voice_config = VoiceConfig()
+    return (
+        PiperVoice.load(THIS_DIR / 'voices/en_US-hfc_male-medium.onnx'),
+        SynthesisConfig(),
+    )
 
 
 def _create_wav_header(chunk: AudioChunk) -> bytes:
@@ -74,11 +73,10 @@ async def prefetch_audio(
     lang: str,
     audio_q: AudioQ,
 ):
-    voice, syn_config = voice_config[lang]
+    voice, syn_config = get_voice_config(lang)
 
     await stream_audio_to_q(
         voice.synthesize(text, syn_config),
         audio_q,
     )
-
     logger.debug(f'Audio cached for {text[:20] + "..."!r}')
