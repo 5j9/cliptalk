@@ -76,11 +76,9 @@ async def prefetch_audio(
 ):
     voice, syn_config = voice_config[lang]
 
-    short_text = repr(text[:20] + '...')
-
     await stream_audio_to_q(
         voice.synthesize(text, syn_config),
         audio_q,
     )
 
-    logger.debug(f'Audio cached for {short_text}')
+    logger.debug(f'Audio cached for {text[:20] + "..."!r}')
