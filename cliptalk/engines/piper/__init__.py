@@ -1,13 +1,12 @@
-import wave
 from asyncio import sleep, to_thread
 from collections.abc import Iterable, Iterator
 from functools import cache
-from io import BytesIO
 from pathlib import Path
 
 from piper import AudioChunk, PiperVoice, SynthesisConfig
 
 from cliptalk import AudioQ, logger
+from cliptalk.engines import create_wav_header
 
 THIS_DIR = Path(__file__).parent
 
@@ -27,21 +26,6 @@ def get_voice_config(lang: str) -> tuple[PiperVoice, SynthesisConfig]:
     )
 
 
-def _create_wav_header(chunk: AudioChunk) -> bytes:
-    """
-    Create a streaming WAV header with unknown data size.
-    """
-    mock_wav_file = BytesIO()
-
-    with wave.open(mock_wav_file, 'wb') as w:
-        w.setframerate(chunk.sample_rate)
-        w.setsampwidth(chunk.sample_width)
-        w.setnchannels(chunk.sample_channels)
-
-    mock_wav_file.seek(0)
-    return mock_wav_file.read()
-
-
 def _get_next(iterator: Iterator[AudioChunk]):
     return next(iterator, None)
 
@@ -49,21 +33,15 @@ def _get_next(iterator: Iterator[AudioChunk]):
 async def stream_audio_to_q(
     audio_generator: Iterable[AudioChunk],
     audio_q: AudioQ,
+    sample_rate: int,
 ):
     iterator = iter(audio_generator)
-
-    first_chunk = True
+    await audio_q.put(create_wav_header(sample_rate=sample_rate))
 
     while True:
         chunk = await to_thread(_get_next, iterator)
-
         if chunk is None:
             break
-
-        if first_chunk:
-            await audio_q.put(_create_wav_header(chunk))
-            first_chunk = False
-
         await audio_q.put(chunk.audio_int16_bytes)
         await sleep(0)
 
@@ -78,5 +56,6 @@ async def prefetch_audio(
     await stream_audio_to_q(
         voice.synthesize(text, syn_config),
         audio_q,
+        voice.config.sample_rate,
     )
     logger.debug(f'Audio cached for {text[:20] + "..."!r}')

@@ -1,5 +1,4 @@
 import re
-import struct
 from asyncio import to_thread
 
 import pythoncom
@@ -7,22 +6,13 @@ import win32com.client as wincl
 
 from cliptalk import AudioQ, logger
 from cliptalk.config import SAPI_VOICE_NAME, SAPI_VOICE_RATE
+from cliptalk.engines import create_wav_header
 
 # -----------------------------------------------------------------------------
 # SAPI Constants
 # -----------------------------------------------------------------------------
 
 SAFT16kHz16BitMono = 18
-
-# -----------------------------------------------------------------------------
-# Audio Specifications
-# -----------------------------------------------------------------------------
-
-SAMPLE_RATE = 16000
-CHANNELS = 1
-BITS_PER_SAMPLE = 16
-BLOCK_ALIGN = CHANNELS * (BITS_PER_SAMPLE // 8)
-BYTE_RATE = SAMPLE_RATE * BLOCK_ALIGN
 
 # -----------------------------------------------------------------------------
 # Text Chunking
@@ -88,44 +78,6 @@ def _select_voice(voice_obj):
 # -----------------------------------------------------------------------------
 
 
-def _create_wav_header() -> bytes:
-    """
-    Creates a streaming WAV header.
-
-    The sizes are set to 0xFFFFFFFF because the final audio length
-    is not known when streaming begins.
-    """
-
-    unknown_size = 0xFFFFFFFF
-
-    header = struct.pack(
-        '<4sI4s',
-        b'RIFF',
-        unknown_size,
-        b'WAVE',
-    )
-
-    header += struct.pack(
-        '<4sIHHIIHH',
-        b'fmt ',
-        16,  # PCM fmt chunk size
-        1,  # PCM format
-        CHANNELS,
-        SAMPLE_RATE,
-        BYTE_RATE,
-        BLOCK_ALIGN,
-        BITS_PER_SAMPLE,
-    )
-
-    header += struct.pack(
-        '<4sI',
-        b'data',
-        unknown_size,
-    )
-
-    return header
-
-
 # -----------------------------------------------------------------------------
 # SAPI Synthesis
 # -----------------------------------------------------------------------------
@@ -156,7 +108,7 @@ def _synthesize_chunk(text: str) -> bytes:
 
         raw_pcm = stream.GetData()
 
-        return _create_wav_header() + raw_pcm
+        return create_wav_header(16000) + raw_pcm
 
     except Exception as e:
         logger.exception('SAPI synthesis failed: %r', e)
