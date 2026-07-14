@@ -1,6 +1,8 @@
-from asyncio import sleep, to_thread
-from collections.abc import Iterable, Iterator
+from asyncio import to_thread
+from collections.abc import Iterable
 from functools import cache
+from multiprocessing import Process
+from multiprocessing.connection import Connection, PipeConnection
 from pathlib import Path
 
 from piper import AudioChunk, PiperVoice, SynthesisConfig
@@ -26,36 +28,45 @@ def get_voice_config(lang: str) -> tuple[PiperVoice, SynthesisConfig]:
     )
 
 
-def _get_next(iterator: Iterator[AudioChunk]):
-    return next(iterator, None)
-
-
-async def stream_audio_to_q(
+def stream_audio(
     audio_generator: Iterable[AudioChunk],
-    audio_q: AudioQ,
+    sub_process_conn: Connection,
     sample_rate: int,
 ):
-    iterator = iter(audio_generator)
-    await audio_q.put(create_wav_header(sample_rate=sample_rate))
+    sub_process_conn.send_bytes(create_wav_header(sample_rate=sample_rate))
+    for chunk in audio_generator:
+        sub_process_conn.send_bytes(chunk.audio_int16_bytes)
+    sub_process_conn.send_bytes(b'')
 
+
+def worker(sub_process_conn: Connection):
     while True:
-        chunk = await to_thread(_get_next, iterator)
-        if chunk is None:
-            break
-        await audio_q.put(chunk.audio_int16_bytes)
-        await sleep(0)
+        text, lang = sub_process_conn.recv()
+        voice, syn_config = get_voice_config(lang)
+        stream_audio(
+            voice.synthesize(text, syn_config),
+            sub_process_conn,
+            voice.config.sample_rate,
+        )
+        logger.debug(f'Audio cached for {text[:20] + "..."!r}')
 
 
-async def prefetch_audio(
-    text: str,
-    lang: str,
-    audio_q: AudioQ,
+main_process_conn: PipeConnection
+
+
+def start_sub_process(
+    sub_process_conn: PipeConnection, main_process_conn_: PipeConnection
 ):
-    voice, syn_config = get_voice_config(lang)
+    global main_process_conn
+    main_process_conn = main_process_conn_
+    process = Process(target=worker, args=(sub_process_conn,), daemon=True)
+    process.start()
 
-    await stream_audio_to_q(
-        voice.synthesize(text, syn_config),
-        audio_q,
-        voice.config.sample_rate,
-    )
-    logger.debug(f'Audio cached for {text[:20] + "..."!r}')
+
+async def prefetch_audio(text: str, lang: str, audio_q: AudioQ):
+    main_process_conn.send((text, lang))
+    while True:
+        data = await to_thread(main_process_conn.recv_bytes)
+        if not data:
+            break
+        await audio_q.put(data)
