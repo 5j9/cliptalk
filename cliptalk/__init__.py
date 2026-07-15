@@ -1,9 +1,11 @@
-from asyncio import Queue
+from asyncio import Queue, Task, create_task
 
 from aiohttp import ClientConnectionResetError
 from applog import logger
 
 __version__ = '2025.09.19'
+
+background_tasks = set[Task]()
 
 
 class SizeUpdatingQ[T](Queue):
@@ -14,7 +16,9 @@ class SizeUpdatingQ[T](Queue):
 
     async def put(self, item: T):
         await super().put(item)
-        await self.update_front_end_status()
+        update_task = create_task(self.update_front_end_status())
+        background_tasks.add(update_task)
+        update_task.add_done_callback(background_tasks.discard)
 
     async def update_front_end_status(self):
         current_ws = self.current_ws_container.get('current_ws')
