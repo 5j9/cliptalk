@@ -69,7 +69,7 @@ async def prefetch_audio_loop(
             finally:
                 logger.debug('calling audio_q.shutdown()')
                 audio_q.shutdown()
-                await in_q.atask_done()
+                in_q.task_done()
     except Exception:
         logger.critical('Fatal Error')
 
@@ -258,7 +258,7 @@ async def _(request):
             await ws.close()
             return ws
         finally:
-            await out_q.atask_done()
+            out_q.task_done()
         logger.debug('awaiting next_request')
         await next_request.wait()
 

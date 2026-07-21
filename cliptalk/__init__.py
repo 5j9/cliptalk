@@ -37,9 +37,6 @@ class SizeUpdatingQ[T](Queue):
         update_task.add_done_callback(background_tasks.discard)
 
     def task_done(self):
-        raise NotImplementedError('use `atask_done` instead')
-
-    async def atask_done(self):
         super().task_done()
         self.update_front_end_status()
 
