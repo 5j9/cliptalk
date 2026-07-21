@@ -11,8 +11,10 @@ from asyncio import (
     to_thread,
 )
 from collections.abc import Awaitable, Callable
+from functools import partial
 from multiprocessing import Pipe, Process
 from pathlib import Path
+from re import compile as rc
 
 from aiohttp.web import (
     Application,
@@ -30,6 +32,8 @@ from cliptalk.qt_server import run_qt_app
 
 this_dir = Path(__file__).parent
 
+remove_urls = partial(rc(r'https?://\S+').sub, 'URL')
+
 
 async def prefetch_audio_loop(
     in_q: InputQ,
@@ -40,7 +44,9 @@ async def prefetch_audio_loop(
     try:
         while True:
             text = await in_q.get()
+
             lang = detect_lang(text)
+            text = remove_urls(text)
             short_text = text[:20] + '...'
             audio_q = AudioQ()
             await out_q.put((text, lang == 'fa', audio_q))
