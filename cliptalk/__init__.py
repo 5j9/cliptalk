@@ -16,11 +16,9 @@ class SizeUpdatingQ[T](Queue):
 
     async def put(self, item: T):
         await super().put(item)
-        update_task = create_task(self.update_front_end_status())
-        background_tasks.add(update_task)
-        update_task.add_done_callback(background_tasks.discard)
+        self.update_front_end_status()
 
-    async def update_front_end_status(self):
+    async def _update_front_end_status(self):
         current_ws = self.current_ws_container.get('current_ws')
         if current_ws is not None:
             try:
@@ -33,12 +31,17 @@ class SizeUpdatingQ[T](Queue):
             except ClientConnectionResetError:
                 logger.warning('Could not update front-end status')
 
+    def update_front_end_status(self):
+        update_task = create_task(self._update_front_end_status())
+        background_tasks.add(update_task)
+        update_task.add_done_callback(background_tasks.discard)
+
     def task_done(self):
         raise NotImplementedError('use `atask_done` instead')
 
     async def atask_done(self):
         super().task_done()
-        await self.update_front_end_status()
+        self.update_front_end_status()
 
 
 AudioQ = Queue[bytes]
