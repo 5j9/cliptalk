@@ -165,7 +165,7 @@ temp_monitor_task: Task | None = None
 
 
 async def _send_false_later() -> None:
-    await sleep(1.0)
+    await sleep(2.0)
     conn.send(False)
 
 
