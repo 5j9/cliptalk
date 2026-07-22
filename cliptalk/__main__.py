@@ -158,7 +158,7 @@ async def add_to_in_q(request: Request) -> Response:
     """Receive text data via POST request and add to processing queue."""
     body = await request.read()
     text = body.decode()
-    await in_q.put(body.decode().strip())
+    await in_q.put(text.strip())
     logger.info(f'Added text to queue via /q endpoint: {text[:20]}...')
     return Response()
 
