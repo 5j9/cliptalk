@@ -96,13 +96,7 @@ def load_engines() -> dict[str, Callable[[str, str, AudioQ], Awaitable]]:
                 engines[lang] = prefetch_audio
 
             case 'piper':
-                from cliptalk.engines.piper import (
-                    prefetch_audio,
-                    start_sub_process,
-                )
-
-                main, sub = Pipe()
-                start_sub_process(main, sub)
+                from cliptalk.engines.piper import prefetch_audio
 
                 engines[lang] = prefetch_audio
             case _:
