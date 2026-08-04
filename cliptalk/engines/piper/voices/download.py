@@ -21,7 +21,7 @@ async def download_file(session: aiohttp.ClientSession, url: str):
             response.raise_for_status()
 
             # Open the file in binary write mode
-            with open(THIS_DIR / filename, 'wb') as f:
+            with open(THIS_DIR / filename, 'wb') as f:  # noqa: ASYNC230
                 # Read the content in chunks to handle large files
                 while True:
                     chunk = await response.content.read(1024)
