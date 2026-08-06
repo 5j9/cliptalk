@@ -16,6 +16,15 @@
         <button type="button" onclick="stop()">⏹</button>
         <button type="button" onclick="next()" id="next">⏭</button>
         <button type="button" id='clear'>CLEAR</button>
+
+        <!-- Speed Control -->
+        <span class="indicator">
+            Speed:
+            <input type="range" id="speed-slider" min="0.5" max="5.0" step="0.1" value="1.0">
+            <span id="speed-display">1.0x</span>
+        </span>
+        <button type="button" id="reset-speed">↺</button>
+
         <span class="indicator">Input Queue: <span id="input-queue-size">0</span></span>
         <span class="indicator">Output Queue: <span id="output-queue-size">0</span></span>
         <span class="indicator">Status: <span id="status">🔴</span></span>

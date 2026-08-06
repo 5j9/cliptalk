@@ -2,7 +2,78 @@ const port = '3775'
 const home = `http://127.0.0.1:${port}/`
 
 // @ts-check
-var audio = document.querySelector('audio');
+// Cache all DOM elements
+const audio = document.querySelector('audio');
+const statusEl = document.getElementById('status');
+const inputQueueEl = document.getElementById('input-queue-size');
+const outputQueueEl = document.getElementById('output-queue-size');
+const nextButton = document.getElementById('next');
+const toggleButton = document.getElementById('toggle-monitoring');
+const editableField = document.getElementById('editable_field');
+const clearButton = document.getElementById('clear');
+const speedSlider = document.getElementById('speed-slider');
+const speedDisplay = document.getElementById('speed-display');
+const resetSpeedBtn = document.getElementById('reset-speed');
+
+let currentSpeed = 1.0;
+
+// Speed control functions
+function loadSpeedFromStorage() {
+	try {
+		const savedSpeed = localStorage.getItem('cliptalk_speed');
+		if (savedSpeed !== null) {
+			const speed = parseFloat(savedSpeed);
+			if (speed >= 0.5 && speed <= 5.0) {
+				currentSpeed = speed;
+				return speed;
+			}
+		}
+	} catch (error) {
+		console.error('Failed to load speed from localStorage:', error);
+	}
+	return 1.0;
+}
+
+function saveSpeedToStorage(speed) {
+	try {
+		localStorage.setItem('cliptalk_speed', speed.toString());
+	} catch (error) {
+		console.error('Failed to save speed to localStorage:', error);
+	}
+}
+
+function updateSpeed() {
+	if (speedSlider && audio) {
+		currentSpeed = parseFloat(speedSlider.value);
+		audio.playbackRate = currentSpeed;
+		if (speedDisplay) {
+			speedDisplay.textContent = currentSpeed.toFixed(1) + 'x';
+		}
+		saveSpeedToStorage(currentSpeed);
+	}
+}
+
+// Initialize speed control with saved value
+if (speedSlider) {
+	const savedSpeed = loadSpeedFromStorage();
+	speedSlider.value = savedSpeed.toString();
+	if (speedDisplay) {
+		speedDisplay.textContent = savedSpeed.toFixed(1) + 'x';
+	}
+	audio.playbackRate = savedSpeed;
+	currentSpeed = savedSpeed;
+	speedSlider.addEventListener('input', updateSpeed);
+}
+
+if (resetSpeedBtn) {
+	resetSpeedBtn.addEventListener('click', () => {
+		if (speedSlider) {
+			speedSlider.value = '1.0';
+			updateSpeed();
+			localStorage.removeItem('cliptalk_speed');
+		}
+	});
+}
 
 function requestNextStream(e) {
 	if (e.type != 'ended') {
@@ -11,8 +82,6 @@ function requestNextStream(e) {
 	fetch(home + 'next');
 }
 audio.onended = requestNextStream;
-// stall may be tirggered at the very start which is due to MS TTS server delay
-// audio.onstalled = requestNextStream;
 audio.onerror = requestNextStream;
 
 /**@type{HTMLLinkElement} */
@@ -37,96 +106,198 @@ function jumpForward() {
 function stop() {
 	audio.pause();
 	audio.currentTime = 0;
-	pausePlayButton.textContent = '▶';
 }
-
-/**@type{HTMLButtonElement} */
-// @ts-ignore
-const nextButton = document.getElementById('next');
 
 function next() {
 	audio.pause();
-	nextButton.disabled = true;
-	fetch(home + 'next');
-}
-
-async function play() {
-	audio.src = 'audio?' + Date.now(); // Bypasses browser cache
-	audio.play().catch((e) => {
-		console.error(e);
+	if (nextButton) nextButton.disabled = true;
+	fetch(home + 'next').catch(error => {
+		console.error('Next request failed:', error);
+		if (nextButton) nextButton.disabled = false;
 	});
 }
 
+async function play() {
+	audio.src = 'audio?' + Date.now();
+	audio.load();
+
+	audio.addEventListener('loadedmetadata', function onLoaded() {
+		audio.removeEventListener('loadedmetadata', onLoaded);
+		audio.playbackRate = currentSpeed;
+	}, { once: true });
+
+	try {
+		await audio.play();
+	} catch (e) {
+		console.error('Playback failed:', e);
+	}
+}
 
 var monitoring = false;
-/** @type {HTMLElement} */
-// @ts-ignore
-var toggleButton = document.getElementById('toggle-monitoring');
+
 async function toggleMonitoring() {
 	monitoring = !monitoring;
-	var r = await fetch(home + 'monitoring', { method: 'PUT', body: JSON.stringify(monitoring) });
-	toggleButton.textContent = monitoring ? '⭘' : '⏽';
+	try {
+		const r = await fetch(home + 'monitoring', {
+			method: 'PUT',
+			body: JSON.stringify(monitoring)
+		});
+		if (!r.ok) {
+			console.error('Failed to toggle monitoring:', r.status);
+			monitoring = !monitoring;
+		}
+		if (toggleButton) {
+			toggleButton.textContent = monitoring ? '⭘' : '⏽';
+		}
+	} catch (error) {
+		console.error('Network error:', error);
+		monitoring = !monitoring;
+	}
 }
-toggleButton.onclick = toggleMonitoring;
-
+if (toggleButton) {
+	toggleButton.onclick = toggleMonitoring;
+}
 
 var ws;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 10;
+
 function onCloseOrError(e) {
+	console.log('WebSocket closed/error:', e);
+	reconnectAttempts++;
+
+	if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+		console.error('Max reconnection attempts reached');
+		if (statusEl) statusEl.textContent = '⛔';
+		return;
+	}
+
+	if (ws && ws.readyState !== WebSocket.CLOSED) {
+		try {
+			ws.close();
+		} catch (err) {
+			// Ignore close errors
+		}
+	}
 	ws.onclose = ws.onmessage = ws.onopen = ws.onerror = null;
-	var dt = new Date();
-	document.getElementById('status').textContent = '🔴';
-	setTimeout(startWs, 2000);
-	ws.close();
+
+	if (statusEl) statusEl.textContent = '🔴';
+
+	const delay = Math.min(2000 * Math.pow(1.5, reconnectAttempts - 1), 30000);
+	setTimeout(startWs, delay);
 }
 
 function startWs() {
 	console.log('new websocket');
 	try {
 		ws = new WebSocket(`ws://127.0.0.1:${port}/ws`);
-	} catch {
+	} catch (error) {
+		console.error('Failed to create WebSocket:', error);
 		onCloseOrError();
 		return;
 	}
 
 	ws.onerror = ws.onclose = onCloseOrError;
-	ws.onopen = () => { // sync up the monitoring state with server
-		document.getElementById('status').textContent = '🟢';
-		fetch(home + 'monitoring', { method: 'PUT', body: JSON.stringify(monitoring) });
-	}
-	ws.onmessage = (e) => {
-		var j = JSON.parse(e.data);
-		switch (j.action) {
-			case 'toggle-monitoring':
-				monitoring = j.state;
-				toggleButton.textContent = monitoring ? '⭘' : '⏽';
-				break;
-			case 'new-text':
-				var text = j.text;
-				editableField.dir = j.is_fa ? 'rtl' : 'ltr';
-				editableField.textContent = text;
-				nextButton.disabled = false;
-				play();
-				break;
-			case 'input-queue-size':
-				document.getElementById('input-queue-size').textContent = j.value;
-				break;
-			case 'output-queue-size':
-				document.getElementById('output-queue-size').textContent = j.value;
-				break;
-		}
-	}
+	ws.onopen = () => {
+		reconnectAttempts = 0;
+		if (statusEl) statusEl.textContent = '🟢';
 
+		fetch(home + 'monitoring', {
+			method: 'PUT',
+			body: JSON.stringify(monitoring)
+		}).catch(error => {
+			console.error('Failed to sync monitoring state:', error);
+		});
+	};
+
+	ws.onmessage = (e) => {
+		try {
+			var j = JSON.parse(e.data);
+			switch (j.action) {
+				case 'toggle-monitoring':
+					monitoring = j.state;
+					if (toggleButton) {
+						toggleButton.textContent = monitoring ? '⭘' : '⏽';
+					}
+					break;
+				case 'new-text':
+					var text = j.text;
+					if (editableField) {
+						editableField.dir = j.is_fa ? 'rtl' : 'ltr';
+						editableField.textContent = text;
+					}
+					if (nextButton) {
+						nextButton.disabled = false;
+					}
+					play();
+					break;
+				case 'input-queue-size':
+					if (inputQueueEl) inputQueueEl.textContent = j.value;
+					break;
+				case 'output-queue-size':
+					if (outputQueueEl) outputQueueEl.textContent = j.value;
+					break;
+			}
+		} catch (error) {
+			console.error('Failed to parse WebSocket message:', error);
+		}
+	};
 }
 
+if (clearButton) {
+	clearButton.addEventListener('click', () => {
+		if (editableField) {
+			editableField.textContent = '';
+		}
+	});
+}
 
-/** @type {HTMLElement} */
-// @ts-ignore
-var editableField = document.getElementById('editable_field');
-/** @type {HTMLElement} */
-// @ts-ignore
-var clear = document.getElementById('clear');
-clear.addEventListener('click', () => {
-	editableField.textContent = '';
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+	if (e.target === editableField) {
+		return;
+	}
+
+	switch (e.key) {
+		case 'ArrowLeft':
+			e.preventDefault();
+			jumpBackward();
+			break;
+		case 'ArrowRight':
+			e.preventDefault();
+			jumpForward();
+			break;
+		case 'n':
+		case 'N':
+			next();
+			break;
+		case 's':
+		case 'S':
+			stop();
+			break;
+		case ' ':
+			e.preventDefault();
+			if (audio.paused) {
+				audio.play().catch(err => console.error('Play failed:', err));
+			} else {
+				audio.pause();
+			}
+			break;
+	}
 });
 
+// Handle audio errors
+audio.addEventListener('error', (e) => {
+	console.error('Audio error:', e);
+	if (statusEl) statusEl.textContent = '❌';
+
+	setTimeout(() => {
+		if (audio.src) {
+			audio.load();
+			audio.play().catch(() => { });
+		}
+	}, 3000);
+});
+
+// Start WebSocket connection
 startWs();
