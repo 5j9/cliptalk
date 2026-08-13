@@ -9,28 +9,64 @@
 </head>
 
 <body>
-    <div>
-        <button type="button" id='toggle-monitoring'>⏽</button>
-        <button type="button" onclick="jumpBackward()">⏪</button>
-        <button type="button" onclick="jumpForward()">⏩</button>
-        <button type="button" onclick="stop()">⏹</button>
-        <button type="button" onclick="next()" id="next">⏭</button>
-        <button type="button" id='clear'>CLEAR</button>
+    <div class="toolbar">
+        <button type="button" id='toggle-monitoring' title="Toggle Monitoring">⏽</button>
+        <button type="button" onclick="jumpBackward()" title="Jump Backward 10s (←)">⏪</button>
+        <button type="button" onclick="jumpForward()" title="Jump Forward 10s (→)">⏩</button>
+        <button type="button" onclick="stop()" title="Stop (S)">⏹</button>
+        <button type="button" onclick="next()" id="next" title="Next (N)">⏭</button>
+        <button type="button" id='clear' title="Clear Text">CLEAR</button>
 
         <!-- Speed Control -->
         <span class="indicator">
             Speed:
-            <input type="range" id="speed-slider" min="0.5" max="5.0" step="0.1" value="1.0">
+            <input type="range" id="speed-slider" min="0.5" max="5.0" step="0.1" value="1.0"
+                title="Playback Speed (0.5x - 5.0x)">
             <span id="speed-display">1.0x</span>
         </span>
-        <button type="button" id="reset-speed">↺</button>
+        <button type="button" id="reset-speed" title="Reset Speed to 1.0x">↺</button>
 
         <span class="indicator">Input Queue: <span id="input-queue-size">0</span></span>
         <span class="indicator">Output Queue: <span id="output-queue-size">0</span></span>
-        <span class="indicator">Status: <span id="status">🔴</span></span>
+        <span class="indicator">Status: <span id="status" title="Connection Status">🔴</span></span>
+
+        <!-- Help Button -->
+        <button type="button" id="help-button" title="Keyboard Shortcuts">ℹ️</button>
     </div>
-    <audio controls></audio>
-    <div class="editable" contenteditable="true" id="editable_field" dir="ltr">
+
+    <audio controls title="Audio Player (Space to play/pause)"></audio>
+
+    <div class="editable" contenteditable="true" id="editable_field" dir="ltr" title="Current text being read">
+    </div>
+
+    <!-- Help Modal/Legend -->
+    <div id="help-modal" class="help-modal">
+        <div class="help-content">
+            <h2>Keyboard Shortcuts</h2>
+            <table>
+                <tr>
+                    <td><kbd>←</kbd></td>
+                    <td>Jump Backward 10s</td>
+                </tr>
+                <tr>
+                    <td><kbd>→</kbd></td>
+                    <td>Jump Forward 10s</td>
+                </tr>
+                <tr>
+                    <td><kbd>N</kbd></td>
+                    <td>Next</td>
+                </tr>
+                <tr>
+                    <td><kbd>S</kbd></td>
+                    <td>Stop</td>
+                </tr>
+                <tr>
+                    <td><kbd>Space</kbd></td>
+                    <td>Play / Pause</td>
+                </tr>
+            </table>
+            <button type="button" id="close-help" class="close-help-btn">Close</button>
+        </div>
     </div>
 </body>
 <script src="./cliptalk.js"></script>

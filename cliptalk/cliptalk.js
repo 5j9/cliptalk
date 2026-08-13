@@ -1,19 +1,23 @@
+// @ts-check
 const port = '3775'
 const home = `http://127.0.0.1:${port}/`
 
-// @ts-check
 // Cache all DOM elements
-const audio = document.querySelector('audio');
+const audio = /**@type{HTMLAudioElement} */(document.querySelector('audio'));
 const statusEl = document.getElementById('status');
 const inputQueueEl = document.getElementById('input-queue-size');
 const outputQueueEl = document.getElementById('output-queue-size');
-const nextButton = document.getElementById('next');
-const toggleButton = document.getElementById('toggle-monitoring');
+const nextButton = /**@type{HTMLButtonElement} */(document.getElementById('next'));
+const toggleButton = /**@type{HTMLElement} */(document.getElementById('toggle-monitoring'));
 const editableField = document.getElementById('editable_field');
-const clearButton = document.getElementById('clear');
-const speedSlider = document.getElementById('speed-slider');
+const clearButton = /**@type{HTMLElement} */(document.getElementById('clear'));
+const speedSlider = /**@type{HTMLInputElement} */(document.getElementById('speed-slider'));
 const speedDisplay = document.getElementById('speed-display');
-const resetSpeedBtn = document.getElementById('reset-speed');
+const resetSpeedBtn = /**@type{HTMLElement} */(document.getElementById('reset-speed'));
+const helpButton = /**@type{HTMLButtonElement} */(document.getElementById('help-button'));
+const helpModal = /**@type{HTMLElement} */(document.getElementById('help-modal'));
+const closeHelpBtn = /**@type{HTMLElement} */(document.getElementById('close-help'));
+
 
 let currentSpeed = 1.0;
 
@@ -34,6 +38,9 @@ function loadSpeedFromStorage() {
 	return 1.0;
 }
 
+/**
+ * @param {number} speed
+ */
 function saveSpeedToStorage(speed) {
 	try {
 		localStorage.setItem('cliptalk_speed', speed.toString());
@@ -43,14 +50,12 @@ function saveSpeedToStorage(speed) {
 }
 
 function updateSpeed() {
-	if (speedSlider && audio) {
-		currentSpeed = parseFloat(speedSlider.value);
-		audio.playbackRate = currentSpeed;
-		if (speedDisplay) {
-			speedDisplay.textContent = currentSpeed.toFixed(1) + 'x';
-		}
-		saveSpeedToStorage(currentSpeed);
+	currentSpeed = parseFloat(speedSlider.value);
+	audio.playbackRate = currentSpeed;
+	if (speedDisplay) {
+		speedDisplay.textContent = currentSpeed.toFixed(1) + 'x';
 	}
+	saveSpeedToStorage(currentSpeed);
 }
 
 // Initialize speed control with saved value
@@ -75,8 +80,11 @@ if (resetSpeedBtn) {
 	});
 }
 
+/**
+ * @param {Event | String | unknown} e
+ */
 function requestNextStream(e) {
-	if (e.type != 'ended') {
+	if ((e instanceof Event) && e.type != 'ended') {
 		console.log(e);
 	}
 	fetch(home + 'next');
@@ -84,7 +92,6 @@ function requestNextStream(e) {
 audio.onended = requestNextStream;
 audio.onerror = requestNextStream;
 
-/**@type{HTMLLinkElement} */
 // @ts-ignore
 var favicon = document.createElement('link');
 favicon.rel = 'icon'
@@ -158,12 +165,18 @@ if (toggleButton) {
 	toggleButton.onclick = toggleMonitoring;
 }
 
-var ws;
+var /**@type{WebSocket}*/ws;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 10;
 
+/**
+ * @param {Error | unknown} e
+ */
 function onCloseOrError(e) {
-	console.log('WebSocket closed/error:', e);
+	if (e) {
+		console.log('WebSocket closed/error:', e);
+	}
+
 	reconnectAttempts++;
 
 	if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
@@ -193,7 +206,7 @@ function startWs() {
 		ws = new WebSocket(`ws://127.0.0.1:${port}/ws`);
 	} catch (error) {
 		console.error('Failed to create WebSocket:', error);
-		onCloseOrError();
+		onCloseOrError(error);
 		return;
 	}
 
@@ -252,8 +265,14 @@ if (clearButton) {
 	});
 }
 
-// Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
+	// Handle Escape for help modal
+	if (e.key === 'Escape' && helpModal && helpModal.classList.contains('active')) {
+		helpModal.classList.remove('active');
+		return;
+	}
+
+	// Handle keyboard shortcuts
 	if (e.target === editableField) {
 		return;
 	}
@@ -285,6 +304,20 @@ document.addEventListener('keydown', (e) => {
 			break;
 	}
 });
+
+helpButton.addEventListener('click', () => {
+	helpModal.classList.add('active');
+});
+closeHelpBtn.addEventListener('click', () => {
+	helpModal.classList.remove('active');
+});
+helpModal.addEventListener('click', (e) => {
+	if (e.target === helpModal) {
+		helpModal.classList.remove('active');
+	}
+});
+
+
 
 // Handle audio errors
 audio.addEventListener('error', (e) => {
