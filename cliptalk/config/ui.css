@@ -1,0 +1,87 @@
+:root {
+    --config-bg: #fff;
+    --config-text: #333;
+    --config-border: #ccc;
+    --config-input-bg: #fff;
+    --config-input-border: #aaa;
+}
+
+.config-panel {
+    display: inline-flex;
+    position: relative;
+}
+
+#toggle-config {
+    background: transparent;
+    border: 1px solid #aaa;
+    color: #333;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+.config-content {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 1000;
+
+    min-width: 280px;
+    padding: 16px;
+
+    box-sizing: border-box;
+    background: var(--config-bg);
+    color: var(--config-text);
+
+    border: 1px solid var(--config-border);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+}
+
+.config-content h3 {
+    margin: 0 0 16px;
+}
+
+.config-group {
+    display: grid;
+    grid-template-columns: 1fr 120px;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.config-group label {
+    color: var(--config-text);
+}
+
+.config-group select {
+    width: 100%;
+    box-sizing: border-box;
+
+    background: var(--config-input-bg);
+    color: var(--config-text);
+    border: 1px solid var(--config-input-border);
+    border-radius: 4px;
+    padding: 5px;
+}
+
+#save-config {
+    margin-top: 4px;
+    padding: 6px 16px;
+
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#save-config:hover {
+    background: #0056b3;
+}
+
+#config-status {
+    margin-left: 10px;
+    font-size: 12px;
+}

@@ -1,8 +1,8 @@
 # See load_prefetch_function in __main__ for defined engines.
 ENGINES = {
     'default': 'sapi',
-    # 'fa': 'edge',
-    'fa': 'piper',
+    'fa': 'edge',
+    # 'fa': 'piper',
 }
 MIN_SPACE_RATIO = 0.05
 MIN_TEXT_LENGTH = 1

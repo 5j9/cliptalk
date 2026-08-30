@@ -17,7 +17,6 @@
         <button type="button" onclick="next()" id="next" title="Next (N)">⏭</button>
         <button type="button" id='clear' title="Clear Text">CLEAR</button>
 
-        <!-- Speed Control -->
         <span class="indicator">
             Speed:
             <input type="range" id="speed-slider" min="0.5" max="5.0" step="0.1" value="1.0"
@@ -30,8 +29,8 @@
         <span class="indicator">Output Queue: <span id="output-queue-size">0</span></span>
         <span class="indicator">Status: <span id="status" title="Connection Status">🔴</span></span>
 
-        <!-- Help Button -->
         <button type="button" id="help-button" title="Keyboard Shortcuts">ℹ️</button>
+        {config_ui}
     </div>
 
     <audio controls title="Audio Player (Space to play/pause)"></audio>
@@ -70,5 +69,6 @@
     </div>
 </body>
 <script src="./cliptalk.js"></script>
+<script src="./config/ui.js"></script>
 
 </html>

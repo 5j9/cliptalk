@@ -1,0 +1,30 @@
+<link rel="stylesheet" href="./config/ui.css">
+
+<div class="config-panel" id="config-panel">
+    <button type="button" id="toggle-config" title="Configuration">⚙️</button>
+
+    <div class="config-content" id="config-content" style="display: none;">
+        <h3>TTS Engines</h3>
+
+        <div class="config-group">
+            <label for="default-engine">Default:</label>
+            <select id="default-engine" data-engine-key="default">
+                <option value="sapi">SAPI</option>
+                <option value="edge">Edge</option>
+                <option value="piper">Piper</option>
+            </select>
+        </div>
+
+        <div class="config-group">
+            <label for="fa-engine">Persian:</label>
+            <select id="fa-engine" data-engine-key="fa">
+                <option value="sapi">SAPI</option>
+                <option value="edge">Edge</option>
+                <option value="piper">Piper</option>
+            </select>
+        </div>
+
+        <button type="button" id="save-config">Save</button>
+        <span id="config-status"></span>
+    </div>
+</div>

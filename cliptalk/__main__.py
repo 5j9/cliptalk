@@ -6,15 +6,11 @@ from asyncio import (
     Event,
     QueueShutDown,
     Task,
-    new_event_loop,
     sleep,
     to_thread,
 )
-from collections.abc import Awaitable, Callable
-from functools import partial
 from multiprocessing import Pipe, Process
 from pathlib import Path
-from re import compile as rc
 
 from aiohttp.web import (
     Application,
@@ -25,95 +21,21 @@ from aiohttp.web import (
     WebSocketResponse,
     run_app,
 )
+from config.ui import routes as ui_routes
 
-from cliptalk import AudioQ, InputQ, OutputQ, config, logger
-from cliptalk.engines import detect_lang
+from cliptalk import (
+    config,
+    create_task,
+    in_q,
+    logger,
+    loop,
+    out_q,
+)
 from cliptalk.qt_server import run_qt_app
 
 this_dir = Path(__file__).parent
 
-remove_urls = partial(rc(r'https?://\S+').sub, 'URL')
-
-
-async def prefetch_audio_loop(
-    in_q: InputQ,
-    out_q: OutputQ,
-):
-    """Prefetch audio for all texts in the queue."""
-    engines = load_engines()
-    try:
-        while True:
-            text = await in_q.get()
-
-            lang = detect_lang(text)
-            text = remove_urls(text)
-            short_text = text[:20] + '...'
-            audio_q = AudioQ()
-            await out_q.put((text, lang == 'fa', audio_q))
-            fetcher = engines.get(lang) or engines['default']
-            try:
-                for _ in range(3):
-                    try:
-                        await fetcher(text, lang, audio_q)
-                    except Exception as e:
-                        logger.debug(f'Retrying {e!r}.')
-                        continue
-                    logger.info(f'Audio cached for: {short_text}')
-                    break
-            except QueueShutDown:
-                logger.debug(f'audio_q QueueShutDown for {short_text}')
-            except Exception as e:
-                logger.error(
-                    f'Error prefetching audio for {short_text}: {e!r}'
-                )
-            finally:
-                logger.debug('calling audio_q.shutdown()')
-                audio_q.shutdown()
-                in_q.task_done()
-    except Exception:
-        logger.critical('Fatal Error')
-
-
-def load_engines() -> dict[str, Callable[[str, str, AudioQ], Awaitable]]:
-    """
-    piper engine uses a lot more memory, but is usually more responsive.
-    edge engine uses the Microsoft Edge tts servers.
-    sapi uses Microsoft Speech API (SAPI). It has limited features,
-        but is usually the most responsive one.
-    """
-    engines: dict = config.ENGINES
-
-    for lang, engine in engines.items():
-        match engine:
-            case 'edge':
-                from cliptalk.engines.edge import prefetch_audio
-
-                engines[lang] = prefetch_audio
-
-            case 'sapi':
-                from cliptalk.engines.sapi import prefetch_audio
-
-                engines[lang] = prefetch_audio
-
-            case 'piper':
-                from cliptalk.engines.piper import prefetch_audio
-
-                engines[lang] = prefetch_audio
-            case _:
-                raise ValueError('unknown engine')
-
-    return engines
-
-
 routes = RouteTableDef()
-
-
-in_q = InputQ(
-    maxsize=500, action='input-queue-size', current_ws_container=globals()
-)
-out_q = OutputQ(
-    maxsize=25, action='output-queue-size', current_ws_container=globals()
-)
 
 
 @routes.put('/monitoring')
@@ -225,7 +147,7 @@ current_ws: WebSocketResponse | None = None
 
 
 @routes.get('/ws')
-async def _(request):
+async def ws_handler(request):
     global current_audio_q, current_ws
     logger.info('new websocket connection')
 
@@ -258,25 +180,27 @@ async def _(request):
 
 
 @routes.get('/cliptalk.html')
-async def _(_):
+async def cliptalk_html(_):
     return Response(
-        text=(this_dir / 'cliptalk.html').read_bytes().decode(),
+        text=(this_dir / 'cliptalk.html')
+        .read_text('utf8')
+        .format(config_ui=(this_dir / 'config/ui.html').read_text('utf8')),
         content_type='text/html',
     )
 
 
 @routes.get('/cliptalk.js')
-async def _(_):
+async def cliptalk_js(_):
     return Response(
-        text=(this_dir / 'cliptalk.js').read_bytes().decode(),
+        text=(this_dir / 'cliptalk.js').read_text('utf8'),
         content_type='application/javascript',
     )
 
 
 @routes.get('/cliptalk.css')
-async def _(_):
+async def cliptalk_css(_):
     return Response(
-        text=(this_dir / 'cliptalk.css').read_bytes().decode(),
+        text=(this_dir / 'cliptalk.css').read_text('utf8'),
         content_type='text/css',
     )
 
@@ -290,7 +214,7 @@ audio_headers = {
 
 
 @routes.get('/audio')
-async def _(request: Request) -> StreamResponse:
+async def audio_handler(request: Request) -> StreamResponse:
     audio_q = current_audio_q
     logger.info('Serving audio started.')
     response = StreamResponse(status=200, reason='OK', headers=audio_headers)
@@ -316,9 +240,8 @@ async def open_tab_if_no_conn():
 if __name__ == '__main__':
     app = Application()
     app.add_routes(routes)
+    app.add_routes(ui_routes)
 
-    loop = new_event_loop()
-    create_task = loop.create_task
     # loop.create_task(set_voice_names())
 
     qt_conn, conn = Pipe(True)
@@ -326,7 +249,6 @@ if __name__ == '__main__':
     qt_process = Process(target=run_qt_app, args=(qt_conn,))
     qt_process.start()
     listen_to_qt_task = create_task(listen_to_qt())
-    prefetch_audio_task = create_task(prefetch_audio_loop(in_q, out_q))
     open_tab_task = create_task(open_tab_if_no_conn())
 
     try:
