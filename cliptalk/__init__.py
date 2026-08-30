@@ -14,17 +14,18 @@ background_tasks = set[Task]()
 
 
 class SizeUpdatingQ[T](Queue):
-    def __init__(self, action: str, current_ws_container, maxsize=0):
+    def __init__(self, action: str, maxsize=0):
         self.action = action
         super().__init__(maxsize)
-        self.current_ws_container = current_ws_container
 
     async def put(self, item: T):
         await super().put(item)
         self.update_front_end_status()
 
     async def _update_front_end_status(self):
-        current_ws = self.current_ws_container.get('current_ws')
+        from cliptalk import aioh  # todo: use lazy import in py 3.15
+
+        current_ws = aioh.current_ws
         if current_ws is not None:
             try:
                 await current_ws.send_json(
@@ -53,12 +54,8 @@ InputQ = SizeUpdatingQ[str]
 OutputQ = SizeUpdatingQ[tuple[str, bool, AudioQ]]
 
 
-in_q = InputQ(
-    maxsize=500, action='input-queue-size', current_ws_container=globals()
-)
-out_q = OutputQ(
-    maxsize=25, action='output-queue-size', current_ws_container=globals()
-)
+in_q = InputQ(maxsize=500, action='input-queue-size')
+out_q = OutputQ(maxsize=25, action='output-queue-size')
 
 
 type Prefetchers = dict[str, Callable[[str, str, AudioQ], Awaitable]]
