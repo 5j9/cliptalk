@@ -2,6 +2,7 @@ const configContent = document.getElementById('config-content');
 const toggleConfig = document.getElementById('toggle-config');
 const saveConfig = document.getElementById('save-config');
 const configStatus = document.getElementById('config-status');
+const configPanel = document.getElementById('config-panel');
 
 
 toggleConfig.addEventListener('click', async () => {
@@ -11,6 +12,16 @@ toggleConfig.addEventListener('click', async () => {
 
     if (isHidden) {
         await loadConfig();
+    }
+});
+
+
+document.addEventListener('click', (event) => {
+    if (
+        configContent.style.display !== 'none'
+        && !configPanel.contains(event.target)
+    ) {
+        configContent.style.display = 'none';
     }
 });
 
