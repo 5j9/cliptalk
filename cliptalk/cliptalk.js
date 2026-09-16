@@ -1,22 +1,22 @@
 // @ts-check
-const port = '3775'
-const home = `http://127.0.0.1:${port}/`
+const port = '3775';
+const home = `http://127.0.0.1:${port}/`;
 
 // Cache all DOM elements
-const audio = /**@type{HTMLAudioElement} */(document.querySelector('audio'));
+const audio = /** @type{HTMLAudioElement} */ (document.querySelector('audio'));
 const statusEl = document.getElementById('status');
 const inputQueueEl = document.getElementById('input-queue-size');
 const outputQueueEl = document.getElementById('output-queue-size');
-const nextButton = /**@type{HTMLButtonElement} */(document.getElementById('next'));
-const toggleButton = /**@type{HTMLElement} */(document.getElementById('toggle-monitoring'));
+const nextButton = /** @type{HTMLButtonElement} */ (document.getElementById('next'));
+const toggleButton = /** @type{HTMLElement} */ (document.getElementById('toggle-monitoring'));
 const editableField = document.getElementById('editable_field');
-const clearButton = /**@type{HTMLElement} */(document.getElementById('clear'));
-const speedSlider = /**@type{HTMLInputElement} */(document.getElementById('speed-slider'));
+const clearButton = /** @type{HTMLElement} */ (document.getElementById('clear'));
+const speedSlider = /** @type{HTMLInputElement} */ (document.getElementById('speed-slider'));
 const speedDisplay = document.getElementById('speed-display');
-const resetSpeedBtn = /**@type{HTMLElement} */(document.getElementById('reset-speed'));
-const helpButton = /**@type{HTMLButtonElement} */(document.getElementById('help-button'));
-const helpModal = /**@type{HTMLElement} */(document.getElementById('help-modal'));
-const closeHelpBtn = /**@type{HTMLElement} */(document.getElementById('close-help'));
+const resetSpeedBtn = /** @type{HTMLElement} */ (document.getElementById('reset-speed'));
+const helpButton = /** @type{HTMLButtonElement} */ (document.getElementById('help-button'));
+const helpModal = /** @type{HTMLElement} */ (document.getElementById('help-modal'));
+const closeHelpBtn = /** @type{HTMLElement} */ (document.getElementById('close-help'));
 
 
 let currentSpeed = 1.0;
@@ -89,18 +89,22 @@ function requestNextStream(e) {
 	}
 	fetch(home + 'next');
 }
+
 audio.onended = requestNextStream;
 audio.onerror = requestNextStream;
 
+// Favicon
 // @ts-ignore
 var favicon = document.createElement('link');
-favicon.rel = 'icon'
-favicon.type = 'image/svg+xml'
+favicon.rel = 'icon';
+favicon.type = 'image/svg+xml';
 favicon.href = `data:image/svg+xml,
 	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    	<text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" font-size="16" fill="black">🗣️</text>
-	</svg >`
+		<text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle"
+			font-size="16" fill="black">🗣️</text>
+	</svg>`;
 document.head.appendChild(favicon);
+
 
 function jumpBackward() {
 	audio.currentTime -= 10;
@@ -118,6 +122,7 @@ function stop() {
 function next() {
 	audio.pause();
 	if (nextButton) nextButton.disabled = true;
+
 	fetch(home + 'next').catch(error => {
 		console.error('Next request failed:', error);
 		if (nextButton) nextButton.disabled = false;
@@ -140,19 +145,23 @@ async function play() {
 	}
 }
 
+
 var monitoring = false;
 
 async function toggleMonitoring() {
 	monitoring = !monitoring;
+
 	try {
 		const r = await fetch(home + 'monitoring', {
 			method: 'PUT',
 			body: JSON.stringify(monitoring)
 		});
+
 		if (!r.ok) {
 			console.error('Failed to toggle monitoring:', r.status);
 			monitoring = !monitoring;
 		}
+
 		if (toggleButton) {
 			toggleButton.textContent = monitoring ? '⭘' : '⏽';
 		}
@@ -165,16 +174,20 @@ if (toggleButton) {
 	toggleButton.onclick = toggleMonitoring;
 }
 
-var /**@type{WebSocket}*/ws;
+// WebSocket
+var /** @type{WebSocket | undefined} */ ws;
 let reconnectAttempts = 0;
+let reconnectTimer = /** @type{ReturnType<typeof setTimeout> | undefined} */ (undefined);
+
 const MAX_RECONNECT_ATTEMPTS = 10;
 
+
 /**
- * @param {Error | unknown} e
+ * Schedule a WebSocket reconnect.
  */
-function onCloseOrError(e) {
-	if (e) {
-		console.log('WebSocket closed/error:', e);
+function scheduleReconnect() {
+	if (reconnectTimer !== undefined) {
+		return;
 	}
 
 	reconnectAttempts++;
@@ -185,77 +198,172 @@ function onCloseOrError(e) {
 		return;
 	}
 
-	if (ws && ws.readyState !== WebSocket.CLOSED) {
-		try {
-			ws.close();
-		} catch (err) {
-			// Ignore close errors
-		}
-	}
-	ws.onclose = ws.onmessage = ws.onopen = ws.onerror = null;
+	const delay = Math.min(
+		2000 * Math.pow(1.5, reconnectAttempts - 1),
+		30000
+	);
 
 	if (statusEl) statusEl.textContent = '🔴';
 
-	const delay = Math.min(2000 * Math.pow(1.5, reconnectAttempts - 1), 30000);
-	setTimeout(startWs, delay);
+	reconnectTimer = setTimeout(() => {
+		reconnectTimer = undefined;
+		startWs();
+	}, delay);
 }
 
-function startWs() {
-	console.log('new websocket');
-	try {
-		ws = new WebSocket(`ws://127.0.0.1:${port}/ws`);
-	} catch (error) {
-		console.error('Failed to create WebSocket:', error);
-		onCloseOrError(error);
+
+/**
+ * Handle WebSocket closure.
+ *
+ * @param {CloseEvent} e
+ */
+function onClose(e) {
+	console.log('WebSocket closed:', e);
+
+	// Only act on the current socket.
+	if (ws !== e.target) {
 		return;
 	}
 
-	ws.onerror = ws.onclose = onCloseOrError;
-	ws.onopen = () => {
-		reconnectAttempts = 0;
-		if (statusEl) statusEl.textContent = '🟢';
+	ws = undefined;
 
-		fetch(home + 'monitoring', {
-			method: 'PUT',
-			body: JSON.stringify(monitoring)
-		}).catch(error => {
-			console.error('Failed to sync monitoring state:', error);
-		});
-	};
+	if (statusEl) statusEl.textContent = '🔴';
 
-	ws.onmessage = (e) => {
-		try {
-			var j = JSON.parse(e.data);
-			switch (j.action) {
-				case 'toggle-monitoring':
-					monitoring = j.state;
-					if (toggleButton) {
-						toggleButton.textContent = monitoring ? '⭘' : '⏽';
-					}
-					break;
-				case 'new-text':
-					var text = j.text;
-					if (editableField) {
-						editableField.dir = j.is_fa ? 'rtl' : 'ltr';
-						editableField.textContent = text;
-					}
-					if (nextButton) {
-						nextButton.disabled = false;
-					}
-					play();
-					break;
-				case 'input-queue-size':
-					if (inputQueueEl) inputQueueEl.textContent = j.value;
-					break;
-				case 'output-queue-size':
-					if (outputQueueEl) outputQueueEl.textContent = j.value;
-					break;
-			}
-		} catch (error) {
-			console.error('Failed to parse WebSocket message:', error);
-		}
-	};
+	scheduleReconnect();
 }
+
+
+/**
+ * Start the WebSocket connection if one isn't already active.
+ */
+function startWs() {
+	if (ws && (
+		ws.readyState === WebSocket.OPEN ||
+		ws.readyState === WebSocket.CONNECTING
+	)) {
+		return;
+	}
+
+	console.log('new websocket');
+
+	try {
+		const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
+		ws = socket;
+
+		socket.onerror = (e) => {
+			console.log('WebSocket error:', e);
+		};
+
+		socket.onclose = onClose;
+
+		socket.onopen = () => {
+			// Ignore an old socket that happened to open after a newer
+			// connection was created.
+			if (ws !== socket) {
+				socket.close();
+				return;
+			}
+
+			reconnectAttempts = 0;
+
+			if (reconnectTimer !== undefined) {
+				clearTimeout(reconnectTimer);
+				reconnectTimer = undefined;
+			}
+
+			if (statusEl) statusEl.textContent = '🟢';
+
+			fetch(home + 'monitoring', {
+				method: 'PUT',
+				body: JSON.stringify(monitoring)
+			}).catch(error => {
+				console.error('Failed to sync monitoring state:', error);
+			});
+		};
+
+		socket.onmessage = (e) => {
+			// Ignore messages from an old socket.
+			if (ws !== socket) {
+				return;
+			}
+
+			try {
+				var j = JSON.parse(e.data);
+
+				switch (j.action) {
+					case 'toggle-monitoring':
+						monitoring = j.state;
+						if (toggleButton) {
+							toggleButton.textContent = monitoring ? '⭘' : '⏽';
+						}
+						break;
+
+					case 'new-text':
+						var text = j.text;
+
+						if (editableField) {
+							editableField.dir = j.is_fa ? 'rtl' : 'ltr';
+							editableField.textContent = text;
+						}
+
+						if (nextButton) {
+							nextButton.disabled = false;
+						}
+
+						play();
+						break;
+
+					case 'input-queue-size':
+						if (inputQueueEl) {
+							inputQueueEl.textContent = j.value;
+						}
+						break;
+
+					case 'output-queue-size':
+						if (outputQueueEl) {
+							outputQueueEl.textContent = j.value;
+						}
+						break;
+				}
+			} catch (error) {
+				console.error('Failed to parse WebSocket message:', error);
+			}
+		};
+
+	} catch (error) {
+		console.error('Failed to create WebSocket:', error);
+		ws = undefined;
+		scheduleReconnect();
+	}
+}
+
+
+/*
+ * BFCache
+ *
+ * When Chrome puts the page into the Back-Forward Cache, the WebSocket
+ * is closed. When the page is restored, establish a new connection.
+ */
+window.addEventListener('pageshow', (e) => {
+	if (e.persisted) {
+		console.log('Page restored from BFCache');
+
+		reconnectAttempts = 0;
+
+		if (reconnectTimer !== undefined) {
+			clearTimeout(reconnectTimer);
+			reconnectTimer = undefined;
+		}
+
+		// The cached WebSocket is no longer usable.
+		if (ws && ws.readyState !== WebSocket.OPEN) {
+			ws = undefined;
+		}
+
+		startWs();
+	}
+});
+
 
 if (clearButton) {
 	clearButton.addEventListener('click', () => {
@@ -265,9 +373,14 @@ if (clearButton) {
 	});
 }
 
+
 document.addEventListener('keydown', (e) => {
 	// Handle Escape for help modal
-	if (e.key === 'Escape' && helpModal && helpModal.classList.contains('active')) {
+	if (
+		e.key === 'Escape' &&
+		helpModal &&
+		helpModal.classList.contains('active')
+	) {
 		helpModal.classList.remove('active');
 		return;
 	}
@@ -282,20 +395,25 @@ document.addEventListener('keydown', (e) => {
 			e.preventDefault();
 			jumpBackward();
 			break;
+
 		case 'ArrowRight':
 			e.preventDefault();
 			jumpForward();
 			break;
+
 		case 'n':
 		case 'N':
 			next();
 			break;
+
 		case 's':
 		case 'S':
 			stop();
 			break;
+
 		case ' ':
 			e.preventDefault();
+
 			if (audio.paused) {
 				audio.play().catch(err => console.error('Play failed:', err));
 			} else {
@@ -305,12 +423,15 @@ document.addEventListener('keydown', (e) => {
 	}
 });
 
+
 helpButton.addEventListener('click', () => {
 	helpModal.classList.add('active');
 });
+
 closeHelpBtn.addEventListener('click', () => {
 	helpModal.classList.remove('active');
 });
+
 helpModal.addEventListener('click', (e) => {
 	if (e.target === helpModal) {
 		helpModal.classList.remove('active');
@@ -318,10 +439,10 @@ helpModal.addEventListener('click', (e) => {
 });
 
 
-
 // Handle audio errors
 audio.addEventListener('error', (e) => {
 	console.error('Audio error:', e);
+
 	if (statusEl) statusEl.textContent = '❌';
 
 	setTimeout(() => {
@@ -331,6 +452,7 @@ audio.addEventListener('error', (e) => {
 		}
 	}, 3000);
 });
+
 
 // Start WebSocket connection
 startWs();
