@@ -1,4 +1,4 @@
-from asyncio import sleep, to_thread
+from asyncio import to_thread
 from collections.abc import AsyncGenerator, Iterable
 from functools import cache
 from pathlib import Path
@@ -6,7 +6,7 @@ from pathlib import Path
 from piper import AudioChunk, PiperVoice, SynthesisConfig
 
 from cliptalk import AudioQ, logger
-from cliptalk.engines import create_wav_header
+from cliptalk.engines import create_wav_header, split_text
 
 THIS_DIR = Path(__file__).parent
 
@@ -41,10 +41,10 @@ async def chunks_generator(
 
 async def prefetch_audio(text: str, lang: str, audio_q: AudioQ):
     voice, syn_config = get_voice_config(lang)
-    async for data in chunks_generator(
-        voice.synthesize(text, syn_config),
-        voice.config.sample_rate,
-    ):
-        await audio_q.put(data)
-        await sleep(0.1)
+    for chunk in split_text(text):
+        async for data in chunks_generator(
+            voice.synthesize(chunk, syn_config),
+            voice.config.sample_rate,
+        ):
+            await audio_q.put(data)
     logger.debug(f'Audio cached for {text[:20] + "..."!r}')

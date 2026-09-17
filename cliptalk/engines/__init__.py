@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from re import compile as rc
 from struct import pack
 
@@ -50,3 +51,31 @@ def create_wav_header(sample_rate: int) -> bytes:
     )
 
     return header
+
+
+_splitter = rc(r'(?<=[.!?])\s+|\n\s*').split
+
+
+def split_text(text: str, target_chars: int = 250) -> Generator[str]:
+    """Split text into reasonably sized chunks."""
+    sentences = _splitter(text)
+
+    current: list[str] = []
+    current_len = 0
+
+    for sentence in sentences:
+        sentence = sentence.strip()
+
+        if not sentence:
+            continue
+
+        if current and current_len + len(sentence) > target_chars:
+            yield ' '.join(current)
+            current = [sentence]
+            current_len = len(sentence)
+        else:
+            current.append(sentence)
+            current_len += len(sentence)
+
+    if current:
+        yield ' '.join(current)

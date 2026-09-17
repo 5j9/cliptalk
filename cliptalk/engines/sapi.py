@@ -1,4 +1,3 @@
-import re
 from asyncio import to_thread
 
 import pythoncom
@@ -6,50 +5,13 @@ import win32com.client as wincl
 
 from cliptalk import AudioQ, logger
 from cliptalk.config import SAPI_VOICE_NAME, SAPI_VOICE_RATE
-from cliptalk.engines import create_wav_header
+from cliptalk.engines import create_wav_header, split_text
 
 # -----------------------------------------------------------------------------
 # SAPI Constants
 # -----------------------------------------------------------------------------
 
 SAFT16kHz16BitMono = 18
-
-# -----------------------------------------------------------------------------
-# Text Chunking
-# -----------------------------------------------------------------------------
-
-
-def split_text(text: str, target_chars: int = 250) -> list[str]:
-    """
-    Split text into reasonably sized chunks.
-
-    We split on sentence boundaries and then combine nearby sentences until
-    approximately target_chars is reached.
-    """
-    sentences = re.split(r'(?<=[.!?])\s+', text)
-
-    chunks: list[str] = []
-    current: list[str] = []
-    current_len = 0
-
-    for sentence in sentences:
-        sentence = sentence.strip()
-
-        if not sentence:
-            continue
-
-        if current and current_len + len(sentence) > target_chars:
-            chunks.append(' '.join(current))
-            current = [sentence]
-            current_len = len(sentence)
-        else:
-            current.append(sentence)
-            current_len += len(sentence)
-
-    if current:
-        chunks.append(' '.join(current))
-
-    return chunks
 
 
 # -----------------------------------------------------------------------------
@@ -144,11 +106,6 @@ async def prefetch_audio(
 ):
     chunks = split_text(text)
 
-    logger.debug(
-        'TTS split into %d chunks',
-        len(chunks),
-    )
-
     first_chunk = True
 
     for i, chunk in enumerate(chunks, start=1):
@@ -178,9 +135,4 @@ async def prefetch_audio(
             # remove WAV header, keep only PCM
             await audio_q.put(wav_bytes[44:])
 
-        logger.debug(
-            'audio chunk %d/%d sent (%d bytes)',
-            i,
-            len(chunks),
-            len(wav_bytes),
-        )
+        logger.debug('audio chunk %d sent (%d bytes)', i, len(wav_bytes))
