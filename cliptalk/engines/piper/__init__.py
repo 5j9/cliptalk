@@ -1,4 +1,4 @@
-from asyncio import to_thread
+from asyncio import sleep, to_thread
 from collections.abc import AsyncGenerator, Iterable
 from functools import cache
 from pathlib import Path
@@ -46,4 +46,5 @@ async def prefetch_audio(text: str, lang: str, audio_q: AudioQ):
         voice.config.sample_rate,
     ):
         await audio_q.put(data)
+        await sleep(0.1)
     logger.debug(f'Audio cached for {text[:20] + "..."!r}')
