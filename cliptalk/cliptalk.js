@@ -1,6 +1,6 @@
 // @ts-check
 const port = '3775';
-const home = `http://127.0.0.1:${port}/`;
+const server = `http://127.0.0.1:${port}/`;
 
 // Cache all DOM elements
 const audio = /** @type{HTMLAudioElement} */ (document.querySelector('audio'));
@@ -87,7 +87,7 @@ function requestNextStream(e) {
 	if ((e instanceof Event) && e.type != 'ended') {
 		console.log(e);
 	}
-	fetch(home + 'next');
+	fetch(server + 'next');
 }
 
 audio.onended = requestNextStream;
@@ -123,7 +123,7 @@ function next() {
 	audio.pause();
 	if (nextButton) nextButton.disabled = true;
 
-	fetch(home + 'next').catch(error => {
+	fetch(server + 'next').catch(error => {
 		console.error('Next request failed:', error);
 		if (nextButton) nextButton.disabled = false;
 	});
@@ -152,7 +152,7 @@ async function toggleMonitoring() {
 	monitoring = !monitoring;
 
 	try {
-		const r = await fetch(home + 'monitoring', {
+		const r = await fetch(server + 'monitoring', {
 			method: 'PUT',
 			body: JSON.stringify(monitoring)
 		});
@@ -273,7 +273,7 @@ function startWs() {
 
 			if (statusEl) statusEl.textContent = '🟢';
 
-			fetch(home + 'monitoring', {
+			fetch(server + 'monitoring', {
 				method: 'PUT',
 				body: JSON.stringify(monitoring)
 			}).catch(error => {
