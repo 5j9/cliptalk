@@ -7,6 +7,7 @@ from asyncio import (
 )
 from multiprocessing import Pipe, Process
 
+import psutil
 from aiohttp.web import (
     Application,
     Request,
@@ -25,6 +26,8 @@ from cliptalk import (
 )
 from cliptalk.aioh import routes
 from cliptalk.qt_server import run_qt_app
+
+psutil.Process().nice(psutil.IDLE_PRIORITY_CLASS)
 
 
 @routes.put('/monitoring')
