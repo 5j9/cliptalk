@@ -453,6 +453,9 @@ audio.addEventListener('error', (e) => {
 	}, 3000);
 });
 
+audio.addEventListener('canplay', () => {
+	if (statusEl) statusEl.textContent = '🟢';
+});
 
 // Start WebSocket connection
 startWs();
