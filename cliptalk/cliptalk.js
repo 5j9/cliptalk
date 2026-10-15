@@ -91,7 +91,6 @@ function requestNextStream(e) {
 }
 
 audio.onended = requestNextStream;
-audio.onerror = requestNextStream;
 
 // Favicon
 // @ts-ignore
@@ -439,18 +438,10 @@ helpModal.addEventListener('click', (e) => {
 });
 
 
-// Handle audio errors
 audio.addEventListener('error', (e) => {
-	console.error('Audio error:', e);
+	console.error('Audio error:', e, audio.error);
 
 	if (statusEl) statusEl.textContent = '❌';
-
-	setTimeout(() => {
-		if (audio.src) {
-			audio.load();
-			audio.play().catch(() => { });
-		}
-	}, 3000);
 });
 
 audio.addEventListener('canplay', () => {
