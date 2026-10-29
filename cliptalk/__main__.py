@@ -14,17 +14,16 @@ from aiohttp.web import (
     Response,
     run_app,
 )
-from config.ui import routes as ui_routes
 
 from cliptalk import (
     aioh,
-    config,
     create_task,
     in_q,
     logger,
     loop,
 )
 from cliptalk.aioh import routes
+from cliptalk.config.ui import routes as ui_routes
 from cliptalk.qt_server import run_qt_app
 
 psutil.Process().nice(psutil.IDLE_PRIORITY_CLASS)
@@ -126,7 +125,6 @@ if __name__ == '__main__':
     # loop.create_task(set_voice_names())
 
     qt_conn, conn = Pipe(True)
-    conn.send((config.MIN_SPACE_RATIO, config.MIN_TEXT_LENGTH))
     qt_process = Process(target=run_qt_app, args=(qt_conn,))
     qt_process.start()
     listen_to_qt_task = create_task(listen_to_qt())

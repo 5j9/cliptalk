@@ -15,7 +15,7 @@ async def set_voice_names():
     global fa_voice, en_voice
     voice_manager = await VoicesManager.create()
     fa_voice = voice_manager.find(Gender='Male', Language='fa')[0]['Name']
-    en_voice = voice_manager.find(ShortName='en-US-AvaNeural')[0]['Name']  # type: ignore
+    en_voice = voice_manager.find(ShortName='en-US-AvaNeural')[0]['Name']
 
 
 async def prefetch_audio(text: str, lang: str, audio_q: AudioQ):
@@ -26,4 +26,4 @@ async def prefetch_audio(text: str, lang: str, audio_q: AudioQ):
         text, voice, connect_timeout=5, receive_timeout=20
     ).stream():
         if message['type'] == 'audio':
-            await audio_q.put(message['data'])  # type: ignore
+            await audio_q.put(message['data'])

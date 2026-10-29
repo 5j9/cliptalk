@@ -11,7 +11,7 @@ from aiohttp.web import (
 )
 from applog import logger
 
-from cliptalk import create_task, out_q
+from cliptalk import AudioQ, create_task, out_q
 
 next_request = Event()
 routes = RouteTableDef()
@@ -26,6 +26,7 @@ async def _(request: Request) -> Response:
 
 
 current_ws: WebSocketResponse | None = None
+current_audio_q: AudioQ
 
 
 @routes.get('/ws')

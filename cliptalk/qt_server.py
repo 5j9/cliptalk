@@ -1,6 +1,6 @@
-import re
 from functools import partial
 from multiprocessing.connection import PipeConnection
+from re import compile as rc
 from time import time_ns
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
@@ -22,7 +22,8 @@ qt_app.setQuitOnLastWindowClosed(False)
 
 clipboard: QClipboard = qt_app.clipboard()  # type: ignore
 
-rm_urls = partial(re.compile(r'[A-z]*:\/\/[^\s]*').sub, '')
+rm_urls = partial(rc(r'[A-z]*:\/\/[^\s]*').sub, '')
+has_digits = rc(r'\d').search
 
 min_text_length: int
 min_space_ratio: float
@@ -30,18 +31,11 @@ min_space_ratio: float
 
 def skip(text: str):
     """
-    Determines if the given text should be skipped based on length and space density.
+    Determine if the given text should be skipped.
     """
-    length = len(text)
-    if length < min_text_length:
-        logger.info(f'{length=} < {min_text_length=}. Skipping.')
-        return True
     space_count = text.count(' ')
-    if space_count < 2:
-        logger.info('space_count < 2')
-        return True
-    if space_count / length < min_space_ratio:
-        logger.info(f'Space count less than {min_space_ratio}. Skipping.')
+    if space_count == 0 and has_digits(text):
+        logger.info('looks like a password')
         return True
     return False
 
@@ -241,6 +235,9 @@ class PipeReaderThread(QThread):
         """
         self._running = False
         self.wait()  # Wait for the thread to finish execution
+
+
+conn: PipeConnection
 
 
 def run_qt_app(pipe: PipeConnection):
