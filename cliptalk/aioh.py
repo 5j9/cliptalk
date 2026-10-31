@@ -1,5 +1,12 @@
 import webbrowser
-from asyncio import Event, QueueShutDown, sleep
+from asyncio import (
+    CancelledError,
+    Event,
+    QueueShutDown,
+    Task,
+    current_task,
+    sleep,
+)
 from pathlib import Path
 
 from aiohttp.web import (
@@ -27,39 +34,70 @@ async def _(request: Request) -> Response:
 
 current_ws: WebSocketResponse | None = None
 current_audio_q: AudioQ
+current_ws_task: Task | None = None
 
 
 @routes.get('/ws')
 async def ws_handler(request):
-    global current_audio_q, current_ws
+    global current_audio_q, current_ws, current_ws_task
+
     logger.info('new websocket connection')
 
     ws = WebSocketResponse()
     await ws.prepare(request)
-    if current_ws and not current_ws.closed:
-        logger.debug('closing current_ws before using new one')
-        await current_ws.close()
+
+    old_task = current_ws_task
+    old_ws = current_ws
+
+    if old_task is not None and old_task is not current_task():
+        if old_ws is not None and not old_ws.closed:
+            await old_ws.close()
+
+        old_task.cancel()
+        try:
+            await old_task
+        except CancelledError:
+            pass
 
     current_ws = ws
+    current_ws_task = current_task()
 
-    while True:
-        text, is_fa, audio_q = await out_q.get()
-        logger.info('Sending new clipboard text to front-end.')
-        # Store audio_q in request.app for /audio endpoint
-        current_audio_q = audio_q
-        next_request.clear()
-        try:
-            await ws.send_json(
-                {'action': 'new-text', 'text': text, 'is_fa': is_fa}
-            )
-        except Exception as e:
-            logger.exception(f'WebSocket error: {e}')
+    try:
+        while True:
+            item = await out_q.get()
+            try:
+                text, is_fa, audio_q = item
+                current_audio_q = audio_q
+                next_request.clear()
+
+                await ws.send_json(
+                    {
+                        'action': 'new-text',
+                        'text': text,
+                        'is_fa': is_fa,
+                    }
+                )
+            finally:
+                out_q.task_done()
+
+            await next_request.wait()
+
+    except CancelledError:
+        logger.debug('WebSocket handler cancelled')
+        raise
+
+    except Exception:
+        logger.exception('WebSocket error')
+
+    finally:
+        if current_ws is ws:
+            current_ws = None
+            current_ws_task = None
+
+        if not ws.closed:
             await ws.close()
-            return ws
-        finally:
-            out_q.task_done()
-        logger.debug('awaiting next_request')
-        await next_request.wait()
+
+    return ws
 
 
 this_dir = Path(__file__).parent
